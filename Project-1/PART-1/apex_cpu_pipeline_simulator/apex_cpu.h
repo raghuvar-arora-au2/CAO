@@ -52,7 +52,7 @@ typedef struct APEX_CPU
     int single_step;               /* Wait for user input after every cycle */
     int zero_flag;                 /* {TRUE, FALSE} Used by BZ and BNZ to branch */
     int fetch_from_next_cycle;
-
+    int register_waiting_flag[REG_FILE_SIZE];
     /* Pipeline stages */
     CPU_Stage fetch;
     CPU_Stage decode;

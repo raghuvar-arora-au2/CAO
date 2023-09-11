@@ -147,7 +147,7 @@ APEX_fetch(APEX_CPU *cpu)
         cpu->fetch.rs1 = current_ins->rs1;
         cpu->fetch.rs2 = current_ins->rs2;
         cpu->fetch.imm = current_ins->imm;
-
+        cpu->register_waiting_flag[cpu->fetch.rd]=1;
         /* Update PC for next instruction */
         cpu->pc += 4;
 
@@ -175,6 +175,7 @@ APEX_fetch(APEX_CPU *cpu)
 static void
 APEX_decode(APEX_CPU *cpu)
 {
+    int stall=0;
     if (cpu->decode.has_insn)
     {
         /* Read operands from register file based on the instruction type */
@@ -182,6 +183,11 @@ APEX_decode(APEX_CPU *cpu)
         {
             case OPCODE_ADD:
             {
+                if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rs2]==1){
+                    cpu->fetch_from_next_cycle=TRUE;
+                    stall= 1;
+                    break;
+                }
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
                 break;
@@ -201,9 +207,10 @@ APEX_decode(APEX_CPU *cpu)
         }
 
         /* Copy data from decode latch to execute latch*/
-        cpu->execute = cpu->decode;
-        cpu->decode.has_insn = FALSE;
-
+        if(stall==0){
+            cpu->execute = cpu->decode;
+            cpu->decode.has_insn = FALSE;
+        }
         if (ENABLE_DEBUG_MESSAGES)
         {
             print_stage_content("Decode/RF", &cpu->decode);
@@ -381,6 +388,7 @@ APEX_writeback(APEX_CPU *cpu)
 
             case OPCODE_MOVC: 
             {
+                cpu->register_waiting_flag[cpu->writeback.rd]=0;
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
                 break;
             }
