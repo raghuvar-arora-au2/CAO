@@ -46,7 +46,7 @@ print_instruction(const CPU_Stage *stage)
             printf("%s,R%d,#%d ", stage->opcode_str, stage->rd, stage->imm);
             break;
         }
-
+        case OPCODE_ADDL:
         case OPCODE_LOAD:
         {
             printf("%s,R%d,R%d,#%d ", stage->opcode_str, stage->rd, stage->rs1,
@@ -195,6 +195,20 @@ APEX_decode(APEX_CPU *cpu)
                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
                 break;
             }
+            case OPCODE_ADDL:
+            {
+                if(cpu->register_waiting_flag[cpu->decode.rs1]==1){
+                    cpu->fetch_from_next_cycle=TRUE;
+                    stall= 1;
+                    break;
+                }
+                cpu->register_waiting_flag[cpu->decode.rd]=1;
+                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+
+                
+                break;
+            }
 
             case OPCODE_LOAD:
             {
@@ -237,6 +251,7 @@ APEX_execute(APEX_CPU *cpu)
         {   
             case OPCODE_SUB:
             case OPCODE_ADD:
+            case OPCODE_ADDL:
             {
                 if(cpu-> execute.opcode==OPCODE_ADD){
                     cpu->execute.result_buffer
@@ -245,6 +260,10 @@ APEX_execute(APEX_CPU *cpu)
                 else if(cpu-> execute.opcode==OPCODE_SUB){
                     cpu->execute.result_buffer
                         = cpu->execute.rs1_value - cpu->execute.rs2_value;
+                }
+                else if (cpu->execute.opcode==OPCODE_ADDL){
+                    cpu->execute.result_buffer
+                        = cpu->execute.rs1_value + cpu->execute.imm;                    
                 }
 
                 /* Set the zero flag based on the result buffer */
@@ -387,6 +406,7 @@ APEX_writeback(APEX_CPU *cpu)
         {   
             case OPCODE_SUB:
             case OPCODE_ADD:
+            case  OPCODE_ADDL:
             {
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
                 cpu->register_waiting_flag[cpu->writeback.rd]=0;

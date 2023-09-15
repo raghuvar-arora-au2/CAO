@@ -190,7 +190,7 @@ create_APEX_instruction(APEX_Instruction *ins, char *buffer)
             ins->imm = get_num_from_string(tokens[1]);
             break;
         }
-
+        case OPCODE_ADDL:
         case OPCODE_LOAD:
         {
             ins->rd = get_num_from_string(tokens[0]);
