@@ -195,6 +195,7 @@ APEX_decode(APEX_CPU *cpu)
                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
                 break;
             }
+            case OPCODE_SUBL:
             case OPCODE_ADDL:
             {
                 if(cpu->register_waiting_flag[cpu->decode.rs1]==1){
@@ -202,10 +203,9 @@ APEX_decode(APEX_CPU *cpu)
                     stall= 1;
                     break;
                 }
+
                 cpu->register_waiting_flag[cpu->decode.rd]=1;
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-
                 
                 break;
             }
@@ -252,6 +252,7 @@ APEX_execute(APEX_CPU *cpu)
             case OPCODE_SUB:
             case OPCODE_ADD:
             case OPCODE_ADDL:
+            case OPCODE_SUBL:
             {
                 if(cpu-> execute.opcode==OPCODE_ADD){
                     cpu->execute.result_buffer
@@ -265,6 +266,11 @@ APEX_execute(APEX_CPU *cpu)
                     cpu->execute.result_buffer
                         = cpu->execute.rs1_value + cpu->execute.imm;                    
                 }
+                else if (cpu->execute.opcode==OPCODE_SUBL){
+                    cpu->execute.result_buffer
+                        = cpu->execute.rs1_value - cpu->execute.imm;                    
+                }
+                
 
                 /* Set the zero flag based on the result buffer */
                 if (cpu->execute.result_buffer == 0)
@@ -406,7 +412,8 @@ APEX_writeback(APEX_CPU *cpu)
         {   
             case OPCODE_SUB:
             case OPCODE_ADD:
-            case  OPCODE_ADDL:
+            case OPCODE_ADDL:
+            case OPCODE_SUBL:
             {
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
                 cpu->register_waiting_flag[cpu->writeback.rd]=0;

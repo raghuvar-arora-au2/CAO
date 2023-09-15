@@ -116,6 +116,10 @@ set_opcode_str(const char *opcode_str)
     {
         return OPCODE_ADDL;
     }
+    if (strcmp(opcode_str, "SUBL") == 0)
+    {
+        return OPCODE_SUBL;
+    }
     
 
     assert(0 && "Invalid opcode");
@@ -191,6 +195,7 @@ create_APEX_instruction(APEX_Instruction *ins, char *buffer)
             break;
         }
         case OPCODE_ADDL:
+        case OPCODE_SUBL:
         case OPCODE_LOAD:
         {
             ins->rd = get_num_from_string(tokens[0]);

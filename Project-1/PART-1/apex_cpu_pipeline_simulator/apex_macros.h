@@ -34,6 +34,7 @@
 #define OPCODE_HALT 0xc
 #define OPCODE_NOP 0xd
 #define OPCODE_ADDL 0xe
+#define OPCODE_SUBL 0xf
 
 /* Set this flag to 1 to enable debug messages */
 #define ENABLE_DEBUG_MESSAGES 1
