@@ -69,6 +69,7 @@ print_instruction(const CPU_Stage *stage)
         }
 
         case OPCODE_HALT:
+        case OPCODE_NOP:
         {
             printf("%s", stage->opcode_str);
             break;
@@ -147,7 +148,7 @@ APEX_fetch(APEX_CPU *cpu)
         cpu->fetch.rs1 = current_ins->rs1;
         cpu->fetch.rs2 = current_ins->rs2;
         cpu->fetch.imm = current_ins->imm;
-        cpu->register_waiting_flag[cpu->fetch.rd]=1;
+        
         /* Update PC for next instruction */
         cpu->pc += 4;
 
@@ -181,6 +182,7 @@ APEX_decode(APEX_CPU *cpu)
         /* Read operands from register file based on the instruction type */
         switch (cpu->decode.opcode)
         {
+            case OPCODE_SUB:
             case OPCODE_ADD:
             {
                 if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rs2]==1){
@@ -188,6 +190,7 @@ APEX_decode(APEX_CPU *cpu)
                     stall= 1;
                     break;
                 }
+                cpu->register_waiting_flag[cpu->decode.rd]=1;
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
                 break;
@@ -202,6 +205,7 @@ APEX_decode(APEX_CPU *cpu)
             case OPCODE_MOVC:
             {
                 /* MOVC doesn't have register operands */
+                cpu->register_waiting_flag[cpu->decode.rd]=1;
                 break;
             }
         }
@@ -230,11 +234,18 @@ APEX_execute(APEX_CPU *cpu)
     {
         /* Execute logic based on instruction type */
         switch (cpu->execute.opcode)
-        {
+        {   
+            case OPCODE_SUB:
             case OPCODE_ADD:
             {
-                cpu->execute.result_buffer
-                    = cpu->execute.rs1_value + cpu->execute.rs2_value;
+                if(cpu-> execute.opcode==OPCODE_ADD){
+                    cpu->execute.result_buffer
+                        = cpu->execute.rs1_value + cpu->execute.rs2_value;
+                }
+                else if(cpu-> execute.opcode==OPCODE_SUB){
+                    cpu->execute.result_buffer
+                        = cpu->execute.rs1_value - cpu->execute.rs2_value;
+                }
 
                 /* Set the zero flag based on the result buffer */
                 if (cpu->execute.result_buffer == 0)
@@ -373,10 +384,12 @@ APEX_writeback(APEX_CPU *cpu)
     {
         /* Write result to register file based on instruction type */
         switch (cpu->writeback.opcode)
-        {
+        {   
+            case OPCODE_SUB:
             case OPCODE_ADD:
             {
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
+                cpu->register_waiting_flag[cpu->writeback.rd]=0;
                 break;
             }
 
