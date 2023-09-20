@@ -184,6 +184,7 @@ APEX_decode(APEX_CPU *cpu)
         {
             case OPCODE_SUB:
             case OPCODE_ADD:
+            case OPCODE_AND:
             {
                 if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rs2]==1){
                     cpu->fetch_from_next_cycle=TRUE;
@@ -253,6 +254,7 @@ APEX_execute(APEX_CPU *cpu)
             case OPCODE_ADD:
             case OPCODE_ADDL:
             case OPCODE_SUBL:
+            case OPCODE_AND:
             {
                 if(cpu-> execute.opcode==OPCODE_ADD){
                     cpu->execute.result_buffer
@@ -270,6 +272,11 @@ APEX_execute(APEX_CPU *cpu)
                     cpu->execute.result_buffer
                         = cpu->execute.rs1_value - cpu->execute.imm;                    
                 }
+                else if (cpu->execute.opcode==OPCODE_AND){
+                    cpu->execute.result_buffer
+                        = cpu->execute.rs1_value && cpu->execute.imm; 
+                }
+
                 
 
                 /* Set the zero flag based on the result buffer */
@@ -414,6 +421,7 @@ APEX_writeback(APEX_CPU *cpu)
             case OPCODE_ADD:
             case OPCODE_ADDL:
             case OPCODE_SUBL:
+            case OPCODE_AND:
             {
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
                 cpu->register_waiting_flag[cpu->writeback.rd]=0;
