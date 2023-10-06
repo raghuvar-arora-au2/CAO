@@ -120,6 +120,64 @@ set_opcode_str(const char *opcode_str)
     {
         return OPCODE_SUBL;
     }
+        if (strcmp(opcode_str, "LOADP") == 0)
+    {
+        return OPCODE_LOADP;
+    }
+
+    if (strcmp(opcode_str, "STORE") == 0)
+    {
+        return OPCODE_STORE;
+    }
+    if (strcmp(opcode_str, "NOP") == 0){
+        return OPCODE_NOP;
+    }
+
+    if (strcmp(opcode_str, "STOREP") == 0)
+    {
+        return OPCODE_STOREP;
+    }
+
+    if (strcmp(opcode_str, "BP") == 0)
+    {
+        return OPCODE_BP;
+    }
+
+    if (strcmp(opcode_str, "BNP") == 0)
+    {
+        return OPCODE_BNP;
+    }
+
+    if (strcmp(opcode_str, "BN") == 0)
+    {
+        return OPCODE_BN;
+    }
+
+    if (strcmp(opcode_str, "BNN") == 0)
+    {
+        return OPCODE_BNN;
+    }
+    
+    if (strcmp(opcode_str, "CML") == 0){
+        return OPCODE_CML;
+    }
+
+    if (strcmp(opcode_str, "CMP") == 0){
+        return OPCODE_CMP;
+    }
+
+
+    if (strcmp(opcode_str, "JUMP") == 0){
+        return OPCODE_JUMP;
+    }
+
+    if (strcmp(opcode_str, "JALR") == 0){
+        return OPCODE_JALR;
+    }
+
+
+
+
     
 
     assert(0 && "Invalid opcode");
@@ -197,6 +255,8 @@ create_APEX_instruction(APEX_Instruction *ins, char *buffer)
         case OPCODE_ADDL:
         case OPCODE_SUBL:
         case OPCODE_LOAD:
+        case OPCODE_LOADP:
+        case OPCODE_JALR:
         {
             ins->rd = get_num_from_string(tokens[0]);
             ins->rs1 = get_num_from_string(tokens[1]);
@@ -205,13 +265,17 @@ create_APEX_instruction(APEX_Instruction *ins, char *buffer)
         }
 
         case OPCODE_STORE:
+        case OPCODE_STOREP:
         {
             ins->rs1 = get_num_from_string(tokens[0]);
             ins->rs2 = get_num_from_string(tokens[1]);
             ins->imm = get_num_from_string(tokens[2]);
             break;
         }
-
+        case OPCODE_BP:
+        case OPCODE_BNP:
+        case OPCODE_BN:
+        case OPCODE_BNN:
         case OPCODE_BZ:
         case OPCODE_BNZ:
         {
@@ -222,6 +286,26 @@ create_APEX_instruction(APEX_Instruction *ins, char *buffer)
         {
             break;
         }
+        case OPCODE_CMP:
+        {
+            ins->rs1 = get_num_from_string(tokens[0]);
+            ins->rs2 = get_num_from_string(tokens[1]);
+            break;
+        }
+        case OPCODE_CML:
+        {
+            ins->rs1 = get_num_from_string(tokens[0]);
+            ins->imm = get_num_from_string(tokens[1]);
+            break;
+        }
+        case OPCODE_JUMP:
+        {
+            ins->rs1 = get_num_from_string(tokens[0]);
+            ins->imm = get_num_from_string(tokens[1]);
+            break;
+        }
+
+
     }
     /* Fill in rest of the instructions accordingly */
 }
