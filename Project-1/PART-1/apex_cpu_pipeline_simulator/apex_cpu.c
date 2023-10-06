@@ -48,6 +48,9 @@ print_instruction(const CPU_Stage *stage)
         }
         case OPCODE_ADDL:
         case OPCODE_LOAD:
+        case OPCODE_SUBL:
+        case OPCODE_LOADP:
+        case OPCODE_JALR:
         {
             printf("%s,R%d,R%d,#%d ", stage->opcode_str, stage->rd, stage->rs1,
                    stage->imm);
@@ -55,6 +58,7 @@ print_instruction(const CPU_Stage *stage)
         }
 
         case OPCODE_STORE:
+        case OPCODE_STOREP:
         {
             printf("%s,R%d,R%d,#%d ", stage->opcode_str, stage->rs1, stage->rs2,
                    stage->imm);
@@ -197,6 +201,7 @@ APEX_decode(APEX_CPU *cpu)
                 break;
             }
             case OPCODE_STORE:
+            case OPCODE_STOREP:
             {
                 if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rs2]==1){
                     cpu->fetch_from_next_cycle=TRUE;
@@ -206,8 +211,14 @@ APEX_decode(APEX_CPU *cpu)
                 // cpu->register_waiting_flag[cpu->decode.rd]=1;
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+
+                if(cpu->decode.opcode==OPCODE_STOREP){
+                    cpu->register_waiting_flag[cpu->decode.rs2]=1;
+                }
+
                 break;
             }
+
             case OPCODE_SUBL:
             case OPCODE_ADDL:
             {
@@ -224,6 +235,7 @@ APEX_decode(APEX_CPU *cpu)
             }
 
             case OPCODE_LOAD:
+            case OPCODE_LOADP:
             {
 
                 if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rd]==1){
@@ -233,6 +245,11 @@ APEX_decode(APEX_CPU *cpu)
                 }
                 cpu->register_waiting_flag[cpu->decode.rd]=1;
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+
+                if(cpu->decode.opcode==OPCODE_LOADP){
+                    cpu->register_waiting_flag[cpu->decode.rs1]=1;
+                }
+
                 break;
             }
 
@@ -321,6 +338,11 @@ APEX_execute(APEX_CPU *cpu)
                     = cpu->execute.rs1_value + cpu->execute.imm;
                 break;
             }
+            case OPCODE_LOADP:
+            {
+                cpu->execute.memory_address = cpu->execute.rs1_value + cpu->execute.imm;
+                cpu->execute.aux_buffer = cpu->execute.rs1_value + 4;
+            }
 
             case OPCODE_BZ:
             {
@@ -382,6 +404,12 @@ APEX_execute(APEX_CPU *cpu)
                 cpu->execute.memory_address = cpu->execute.rs2_value + cpu->execute.imm;
                 break;
             }
+            case OPCODE_STOREP:
+            {
+                cpu->execute.memory_address = cpu->execute.rs2_value + cpu->execute.imm;
+                cpu->execute.aux_buffer = cpu->execute.rs2_value + 4;
+                break;
+            }
         }
 
         /* Copy data from execute latch to memory latch*/
@@ -414,6 +442,7 @@ APEX_memory(APEX_CPU *cpu)
             }
 
             case OPCODE_LOAD:
+            case OPCODE_LOADP:
             {
                 /* Read from data memory */
 
@@ -422,6 +451,7 @@ APEX_memory(APEX_CPU *cpu)
                 break;
             }
             case OPCODE_STORE:
+            case OPCODE_STOREP:
             {
                 cpu->data_memory[cpu->memory.memory_address] = cpu->memory.rs1_value;
                 break;
@@ -470,11 +500,25 @@ APEX_writeback(APEX_CPU *cpu)
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
                 break;
             }
+            case OPCODE_LOADP:
+            {             
+                cpu->regs[cpu->writeback.rs1] = cpu->writeback.aux_buffer;
+                cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
+                cpu->register_waiting_flag[cpu->writeback.rd] = FALSE;
+                cpu->register_waiting_flag[cpu->writeback.rs1] = FALSE;
+                break;
+            }
 
             case OPCODE_MOVC: 
             {
                 cpu->register_waiting_flag[cpu->writeback.rd]=0;
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
+                break;
+            }
+            case OPCODE_STOREP:
+            {             
+                cpu->regs[cpu->writeback.rs2] = cpu->writeback.aux_buffer;
+                cpu->register_waiting_flag[cpu->writeback.rs2] = 0;
                 break;
             }
         }
