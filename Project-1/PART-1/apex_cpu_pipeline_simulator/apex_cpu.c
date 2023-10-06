@@ -225,6 +225,7 @@ APEX_decode(APEX_CPU *cpu)
 
             case OPCODE_LOAD:
             {
+
                 if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rd]==1){
                     cpu->fetch_from_next_cycle=TRUE;
                     stall= 1;
@@ -378,7 +379,7 @@ APEX_execute(APEX_CPU *cpu)
             }
             case OPCODE_STORE:
             {
-                cpu->execute.memory_address = cpu->execute.rs1_value + cpu->execute.imm;
+                cpu->execute.memory_address = cpu->execute.rs2_value + cpu->execute.imm;
                 break;
             }
         }
@@ -415,6 +416,7 @@ APEX_memory(APEX_CPU *cpu)
             case OPCODE_LOAD:
             {
                 /* Read from data memory */
+
                 cpu->memory.result_buffer
                     = cpu->data_memory[cpu->memory.memory_address];
                 break;
@@ -571,14 +573,14 @@ APEX_cpu_run(APEX_CPU *cpu)
         if (ENABLE_DEBUG_MESSAGES)
         {
             printf("--------------------------------------------\n");
-            printf("Clock Cycle #: %d\n", cpu->clock);
+            printf("Clock Cycle #: %d\n", cpu->clock+1);
             printf("--------------------------------------------\n");
         }
 
         if (APEX_writeback(cpu))
         {
             /* Halt in writeback stage */
-            printf("APEX_CPU: Simulation Complete, cycles = %d instructions = %d\n", cpu->clock, cpu->insn_completed);
+            printf("APEX_CPU: Simulation Complete, cycles = %d instructions = %d\n", cpu->clock+1, cpu->insn_completed);
             break;
         }
 

@@ -51,6 +51,8 @@ typedef struct APEX_CPU
     int data_memory[DATA_MEMORY_SIZE]; /* Data Memory */
     int single_step;               /* Wait for user input after every cycle */
     int zero_flag;                 /* {TRUE, FALSE} Used by BZ and BNZ to branch */
+    int n_flag;
+    int p_flag;
     int fetch_from_next_cycle;
     int register_waiting_flag[REG_FILE_SIZE];
     /* Pipeline stages */
