@@ -96,6 +96,14 @@ print_instruction(const CPU_Stage *stage)
     }
 }
 
+static void 
+print_flags(const APEX_CPU *cpu)
+{
+    printf("--------\n%s\n--------\n", "FLAGS");
+    printf("Zero Flag : %d;  Positive Flag : %d; Negative Flag: %d;", cpu->zero_flag, cpu->p_flag, cpu->n_flag);
+    printf("\n\n");
+}
+
 /* Debug function which prints the CPU stage content
  *
  * Note: You can edit this function to print in more detail
@@ -283,8 +291,9 @@ APEX_decode(APEX_CPU *cpu)
             {
                 if (cpu->register_waiting_flag[cpu->decode.rs1] == 1 || cpu->register_waiting_flag[cpu->decode.rs2]== 1)
                 {
-                    stall=1;
+                    
                     cpu->fetch_from_next_cycle = TRUE;
+                    stall=1;
                     break;
                 }
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
@@ -537,20 +546,33 @@ APEX_execute(APEX_CPU *cpu)
         /* Execute logic based on instruction type */
         switch (cpu->execute.opcode)
         {   
-                case OPCODE_ADD:
-                case OPCODE_SUB:
-                case OPCODE_MUL:
-                case OPCODE_ADDL:
-                case OPCODE_SUBL:
-                case OPCODE_AND:
-                case OPCODE_OR:
-                case OPCODE_XOR:
+                case OPCODE_ADD: //
+                case OPCODE_SUB: //
+                case OPCODE_MUL: //
+                case OPCODE_ADDL: //
+                case OPCODE_SUBL: //
+                case OPCODE_AND: // 
+                case OPCODE_OR: //
+                case OPCODE_XOR: // 
+                {
+                    cpu->zero_flag = cpu->execute.result_buffer == 0;
+                    cpu->p_flag = cpu->execute.result_buffer > 0;
+                    cpu->n_flag = cpu->execute.result_buffer < 0;
+                    break;
+                }
                 case OPCODE_CMP:
+                {
+                    cpu->zero_flag = cpu->execute.rs1_value == cpu->execute.rs2_value;
+                    cpu->p_flag = cpu->execute.rs1_value > cpu->execute.rs2_value;
+                    cpu->n_flag = cpu->execute.rs1_value < cpu->execute.rs2_value;
+                    break;
+                }
                 case OPCODE_CML:
                 {
-                    cpu->zero_flag = (cpu->execute.result_buffer == 0);
-                    cpu->p_flag = (cpu->execute.result_buffer > 0);
-                    cpu->n_flag = (cpu->execute.result_buffer < 0);
+                    cpu->zero_flag = cpu->execute.rs1_value == cpu->execute.imm;
+                    cpu->p_flag = cpu->execute.rs1_value > cpu->execute.imm;
+                    cpu->n_flag = cpu->execute.rs1_value < cpu->execute.imm;
+                    break;
                 }
         }
     }  
@@ -756,7 +778,18 @@ APEX_cpu_init(const char *filename)
     cpu->fetch.has_insn = TRUE;
     return cpu;
 }
-
+static void print_data_memory(const APEX_CPU *cpu)
+{
+    printf("----------\n%s\n----------\n", "NON-ZERO MEMORY VALUES");
+    for (int i = 0; i < DATA_MEMORY_SIZE; i++)
+    {
+        if (cpu->data_memory[i] != 0)
+        {
+            printf("MEM[%d] = %d\n", i, cpu->data_memory[i]);
+        }
+    }
+    printf("\n");
+}
 /*
  * APEX CPU simulation loop
  *
@@ -789,7 +822,8 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_fetch(cpu);
 
         print_reg_file(cpu);
-
+        print_data_memory(cpu);
+        print_flags(cpu);
         if (cpu->single_step)
         {
             printf("Press any key to advance CPU Clock or <q> to quit:\n");
