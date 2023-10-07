@@ -802,6 +802,9 @@ APEX_cpu_run(APEX_CPU *cpu)
 
     while (TRUE)
     {
+        if(cpu->maxCycles!=0 && cpu->maxCycles<cpu->clock+1){
+            break;
+        }
         if (ENABLE_DEBUG_MESSAGES)
         {
             printf("--------------------------------------------\n");

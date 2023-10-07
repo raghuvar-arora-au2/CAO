@@ -56,6 +56,7 @@ typedef struct APEX_CPU
     int p_flag;
     int fetch_from_next_cycle;
     int register_waiting_flag[REG_FILE_SIZE];
+    int maxCycles;
     /* Pipeline stages */
     CPU_Stage fetch;
     CPU_Stage decode;
