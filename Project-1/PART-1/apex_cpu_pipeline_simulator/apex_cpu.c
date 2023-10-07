@@ -212,6 +212,10 @@ APEX_decode(APEX_CPU *cpu)
             case OPCODE_SUB:
             case OPCODE_ADD:
             case OPCODE_AND:
+            case OPCODE_OR:
+            case OPCODE_XOR:
+            case OPCODE_DIV:
+            case OPCODE_MUL:
             {
                 if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rs2]==1 || cpu->register_waiting_flag[cpu->decode.rd]==1){
                     cpu->fetch_from_next_cycle=TRUE;
@@ -313,6 +317,30 @@ APEX_decode(APEX_CPU *cpu)
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 break;
             }
+            case OPCODE_JALR:
+            {
+                if (cpu->register_waiting_flag[cpu->decode.rs1] == 1)
+                {
+                    stall=1;
+                    cpu->fetch_from_next_cycle = TRUE;
+                    break;
+                }
+                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                cpu->register_waiting_flag[cpu->decode.rd] = 1;
+                break;
+            }
+            case OPCODE_JUMP:
+            {
+                if (cpu->register_waiting_flag[cpu->decode.rs1] == 1)
+                {
+                    
+                    cpu->fetch_from_next_cycle = TRUE;
+                    stall=1;
+                    break;
+                }
+                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                break;
+            }
         }
 
         /* Copy data from decode latch to execute latch*/
@@ -345,6 +373,10 @@ APEX_execute(APEX_CPU *cpu)
             case OPCODE_ADDL:
             case OPCODE_SUBL:
             case OPCODE_AND:
+            case OPCODE_XOR:
+            case OPCODE_OR:
+            case OPCODE_DIV:
+            case OPCODE_MUL:
             {
                 if(cpu-> execute.opcode==OPCODE_ADD){
                     cpu->execute.result_buffer
@@ -365,6 +397,18 @@ APEX_execute(APEX_CPU *cpu)
                 else if (cpu->execute.opcode==OPCODE_AND){
                     cpu->execute.result_buffer
                         = cpu->execute.rs1_value && cpu->execute.imm; 
+                }
+                else if (cpu->execute.opcode == OPCODE_XOR){
+                    cpu->execute.result_buffer = cpu->execute.rs1_value ^ cpu->execute.rs2_value;
+                }
+                else if (cpu->execute.opcode == OPCODE_OR){
+                    cpu->execute.result_buffer = cpu->execute.rs1_value | cpu->execute.rs2_value;
+                }
+                else if (cpu->execute.opcode == OPCODE_DIV){
+                    cpu->execute.result_buffer = cpu->execute.rs1_value / cpu->execute.rs2_value;
+                }
+                else if (cpu->execute.opcode == OPCODE_MUL){
+                    cpu->execute.result_buffer = cpu->execute.rs1_value * cpu->execute.rs2_value;
                 }
 
                 
@@ -537,6 +581,25 @@ APEX_execute(APEX_CPU *cpu)
                 cpu->execute.aux_buffer = cpu->execute.rs2_value + 4;
                 break;
             }
+            case OPCODE_JALR:
+            {
+                int program_counter = cpu->execute.rs1_value + cpu->execute.imm;
+                cpu->execute.jump_buffer = cpu->execute.pc + 4;
+                cpu->pc = program_counter;
+                cpu->fetch_from_next_cycle = TRUE;
+                cpu->decode.has_insn = FALSE;
+                cpu->fetch.has_insn = TRUE;
+                break;
+            }
+            
+            case OPCODE_JUMP:
+            {
+                cpu->pc = cpu->execute.rs1_value + cpu->execute.imm;
+                cpu->fetch_from_next_cycle = TRUE;
+                cpu->decode.has_insn = FALSE;
+                cpu->fetch.has_insn = TRUE;
+                break;
+            }
             
         }
 
@@ -554,6 +617,7 @@ APEX_execute(APEX_CPU *cpu)
                 case OPCODE_AND: // 
                 case OPCODE_OR: //
                 case OPCODE_XOR: // 
+                case OPCODE_DIV:
                 {
                     cpu->zero_flag = cpu->execute.result_buffer == 0;
                     cpu->p_flag = cpu->execute.result_buffer > 0;
@@ -653,6 +717,10 @@ APEX_writeback(APEX_CPU *cpu)
             case OPCODE_ADDL:
             case OPCODE_SUBL:
             case OPCODE_AND:
+            case OPCODE_MUL:
+            case OPCODE_DIV:
+            case OPCODE_XOR:
+            case OPCODE_OR:
             {
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
                 cpu->register_waiting_flag[cpu->writeback.rd]=0;
@@ -678,6 +746,12 @@ APEX_writeback(APEX_CPU *cpu)
             {
                 cpu->register_waiting_flag[cpu->writeback.rd]=0;
                 cpu->regs[cpu->writeback.rd] = cpu->writeback.result_buffer;
+                break;
+            }
+            case OPCODE_JALR:
+            {
+                cpu->regs[cpu->writeback.rd] = cpu->writeback.jump_buffer;
+                cpu->register_waiting_flag[cpu->writeback.rd] = FALSE;
                 break;
             }
             case OPCODE_STOREP:

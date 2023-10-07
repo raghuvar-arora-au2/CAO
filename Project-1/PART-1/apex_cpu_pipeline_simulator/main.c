@@ -29,8 +29,11 @@ main(int argc, char const *argv[])
         fprintf(stderr, "APEX_Error: Unable to initialize CPU\n");
         exit(1);
     }
+    if(argc==2){
+        APEX_cpu_run(cpu);
+    }
 
-    if(argc>2){
+    else if(argc>2){
         if( strcmp(argv[2], "simulate") == 0 && argc == 4){
             int numCycles=atoi(argv[3]);
             cpu->maxCycles=numCycles;
