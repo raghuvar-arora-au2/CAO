@@ -486,26 +486,52 @@ APEX_decode(APEX_CPU *cpu)
             }
             case OPCODE_JALR:
             {
-                if (cpu->register_waiting_flag[cpu->decode.rs1] == 1)
-                {
+                // if (cpu->register_waiting_flag[cpu->decode.rs1] == 1)
+                // {
+                //     stall=1;
+                //     cpu->fetch_from_next_cycle = TRUE;
+                //     break;
+                // }
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                // cpu->register_waiting_flag[cpu->decode.rd] = 1;
+                // break;
+
+                if(cpu->decode.rs1==cpu->decode.rd){
+                    stall=0;
+                }
+                else if (cpu->register_waiting_flag[cpu->decode.rd]){
                     stall=1;
-                    cpu->fetch_from_next_cycle = TRUE;
+                    cpu->fetch_from_next_cycle=TRUE;
                     break;
                 }
-                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                cpu->register_waiting_flag[cpu->decode.rd] = 1;
+                else{
+                    cpu->register_waiting_flag[cpu->decode.rd]=1;
+                }
+
+                if(stall ==0){
+                    stall = forwardRs1(cpu);
+                }
+
                 break;
             }
             case OPCODE_JUMP:
             {
-                if (cpu->register_waiting_flag[cpu->decode.rs1] == 1)
-                {
+                // if (cpu->register_waiting_flag[cpu->decode.rs1] == 1)
+                // {
                     
-                    cpu->fetch_from_next_cycle = TRUE;
-                    stall=1;
-                    break;
-                }
-                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                //     cpu->fetch_from_next_cycle = TRUE;
+                //     stall=1;
+                //     break;
+                // }
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                // break;
+
+                stall=forwardRs1(cpu);
+
+                // if(stall==1){
+                //     break;
+                // }
+
                 break;
             }
         }
@@ -750,7 +776,10 @@ APEX_execute(APEX_CPU *cpu)
             {
                 int program_counter = cpu->execute.rs1_value + cpu->execute.imm;
                 cpu->execute.jump_buffer = cpu->execute.pc + 4;
+
                 cpu->pc = program_counter;
+                cpu->executeStageBuggerRegisterValue=cpu->execute.jump_buffer;
+                cpu->executeStageBufferRegister=cpu->execute.rd;
                 cpu->fetch_from_next_cycle = TRUE;
                 cpu->decode.has_insn = FALSE;
                 cpu->fetch.has_insn = TRUE;
@@ -761,8 +790,9 @@ APEX_execute(APEX_CPU *cpu)
             {
                 cpu->pc = cpu->execute.rs1_value + cpu->execute.imm;
                 cpu->fetch_from_next_cycle = TRUE;
-                cpu->decode.has_insn = FALSE;
                 cpu->fetch.has_insn = TRUE;
+                cpu->decode.has_insn = FALSE;
+                
                 break;
             }
             
