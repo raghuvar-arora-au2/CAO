@@ -200,6 +200,66 @@ APEX_fetch(APEX_CPU *cpu)
  *
  * Note: You are free to edit this function according to your implementation
  */
+
+static int forwardRs1(APEX_CPU * cpu){
+    if( cpu->decode.rs1==cpu->executeStageBufferRegister ){
+        cpu->decode.rs1_value=cpu->executeStageBuggerRegisterValue;
+    }
+    else if( cpu->decode.rs1==cpu->memStageBufferRegister ){
+        cpu->decode.rs1_value=cpu->memStageBuggerRegisterValue;
+    }
+    else if(cpu->register_waiting_flag[cpu->decode.rs1]){
+
+        cpu->fetch_from_next_cycle=TRUE;
+        return 1;
+    }
+    else{
+        cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+        
+    }
+
+    return 0;
+
+}
+
+static int forwardRs2(APEX_CPU * cpu){
+    if( cpu->decode.rs2==cpu->executeStageBufferRegister ){
+        cpu->decode.rs2_value=cpu->executeStageBuggerRegisterValue;
+    }
+    else if( cpu->decode.rs2==cpu->memStageBufferRegister ){
+        cpu->decode.rs2_value=cpu->memStageBuggerRegisterValue;
+    }
+    else if(cpu->register_waiting_flag[cpu->decode.rs2]){
+
+        cpu->fetch_from_next_cycle=TRUE;
+        return 1;
+    }
+    else{
+        cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+        
+    }
+
+    return 0;
+}
+
+// static int forwardRd2(APEX_CPU * cpu){
+//     if( cpu->decode.rs2==cpu->executeStageBufferRegister ){
+//         cpu->decode.rs2_value=cpu->executeStageBuggerRegisterValue;
+//     }
+//     else if( cpu->decode.rs2==cpu->memStageBufferRegister ){
+//         cpu->decode.rs2_value=cpu->memStageBuggerRegisterValue;
+//     }
+//     else if(cpu->register_waiting_flag[cpu->decode.rs2]){
+
+//         cpu->fetch_from_next_cycle=TRUE;
+//         return 1;
+//     }
+//     else{
+//         cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//         return 0;
+//     }
+// }
+
 static void
 APEX_decode(APEX_CPU *cpu)
 {
@@ -217,15 +277,47 @@ APEX_decode(APEX_CPU *cpu)
             case OPCODE_DIV:
             case OPCODE_MUL:
             {
-                if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rs2]==1 || cpu->register_waiting_flag[cpu->decode.rd]==1){
-                    cpu->fetch_from_next_cycle=TRUE;
-                    stall= 1;
+                // if(cpu->register_waiting_flag[cpu->decode.rs1]==1 || cpu->register_waiting_flag[cpu->decode.rs2]==1 || cpu->register_waiting_flag[cpu->decode.rd]==1){
+                //     cpu->fetch_from_next_cycle=TRUE;
+                //     stall= 1;
+                //     break;
+                // }
+                // cpu->register_waiting_flag[cpu->decode.rd]=1;
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+                // break;
+
+                stall = forwardRs1(cpu);
+                if(stall==1){
                     break;
                 }
-                cpu->register_waiting_flag[cpu->decode.rd]=1;
-                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+
+                if(! stall ){
+                    stall=forwardRs2(cpu);
+                }
+
+                if(stall==1){
+                    break;
+                }
+
+                if(!stall){
+                    if ( (cpu->decode.rs2 == cpu->decode.rd) || (cpu->decode.rs1 == cpu->decode.rd) )
+                    {
+                        stall = FALSE;
+                    }
+                    else if(cpu->register_waiting_flag[cpu->decode.rd])
+                    {
+                        stall = 1;
+                        cpu->fetch_from_next_cycle = TRUE;
+                        break;
+                    }
+                    else{
+                        cpu->register_waiting_flag[cpu->decode.rd]=1;
+                    }
+                }
+
                 break;
+
             }
             case OPCODE_STORE:
             case OPCODE_STOREP:
@@ -558,17 +650,9 @@ APEX_execute(APEX_CPU *cpu)
             case OPCODE_MOVC: 
             {
                 cpu->execute.result_buffer = cpu->execute.imm;
+                cpu->executeStageBufferRegister=cpu->execute.rd;
+                cpu->executeStageBuggerRegisterValue=cpu->execute.result_buffer;
 
-                /* Set the zero flag based on the result buffer */
-                if (cpu->execute.result_buffer == 0)
-                {
-                    cpu->zero_flag = TRUE;
-                } 
-                else 
-                {
-                    cpu->zero_flag = FALSE;
-                }
-                break;
             }
             case OPCODE_STORE:
             {
@@ -665,8 +749,22 @@ APEX_memory(APEX_CPU *cpu)
         switch (cpu->memory.opcode)
         {
             case OPCODE_ADD:
+            case OPCODE_SUB:
+            case OPCODE_DIV:
+            case OPCODE_MOVC:
+            case OPCODE_SUBL:
+            case OPCODE_MUL:
+            case OPCODE_AND:
+            case OPCODE_ADDL:
+            case OPCODE_OR:
+            case OPCODE_XOR:
+
+
             {
                 /* No work for ADD */
+                cpu->memStageBuggerRegisterValue = cpu->memory.result_buffer;
+                cpu->memStageBufferRegister = cpu->memory.rd;
+
                 break;
             }
 
