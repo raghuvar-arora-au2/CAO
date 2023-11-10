@@ -181,13 +181,17 @@ APEX_fetch(APEX_CPU *cpu)
         
         /* Update PC for next instruction */
         
-        if(cpu->fetch.opcode==OPCODE_BNZ){
+        if(cpu->fetch.opcode==OPCODE_BNZ || cpu->fetch.opcode==OPCODE_BZ || cpu->fetch.opcode==OPCODE_BNP|| cpu->fetch.opcode==OPCODE_BP){
             int btbIdx=searchBTB(cpu, cpu->pc);
-            if(btbIdx>=0 && cpu->BTB[btbIdx].taken==1){
+            if(btbIdx>=0 && cpu->BTB[btbIdx].taken==1 && cpu->BTB[btbIdx].resolved==1 ){
 
                 cpu->pc= cpu->BTB[btbIdx].calculated_address;
             }
+            // else if (btbIdx>=0 && cpu->BTB[btbIdx].taken==1){
+
+            // }
             else{
+                // cpu->BTB[btbIdx].taken==1;
                 cpu->pc += 4;
             }
         }
@@ -359,6 +363,9 @@ APEX_decode(APEX_CPU *cpu)
                 break;
             }
             case OPCODE_BNZ:
+            case OPCODE_BZ:
+            case OPCODE_BNP:
+            case OPCODE_BP:
             {
                 int btbIdx=searchBTB(cpu, cpu->pc);
                 if(btbIdx==-1){
@@ -464,20 +471,27 @@ APEX_execute(APEX_CPU *cpu)
 
             case OPCODE_BZ:
             {
+                int btbIdx=searchBTB(cpu, cpu->execute.pc);
                 if (cpu->zero_flag == TRUE)
                 {
-                    /* Calculate new PC, and send it to fetch unit */
-                    cpu->pc = cpu->execute.pc + cpu->execute.imm;
+                    branch(cpu);
+                    // /* Calculate new PC, and send it to fetch unit */
+                    // cpu->pc = cpu->execute.pc + cpu->execute.imm;
                     
-                    /* Since we are using reverse callbacks for pipeline stages, 
-                     * this will prevent the new instruction from being fetched in the current cycle*/
-                    cpu->fetch_from_next_cycle = TRUE;
+                    // /* Since we are using reverse callbacks for pipeline stages, 
+                    //  * this will prevent the new instruction from being fetched in the current cycle*/
+                    // cpu->fetch_from_next_cycle = TRUE;
 
-                    /* Flush previous stages */
-                    cpu->decode.has_insn = FALSE;
+                    // /* Flush previous stages */
+                    // cpu->decode.has_insn = FALSE;
 
-                    /* Make sure fetch stage is enabled to start fetching from new PC */
-                    cpu->fetch.has_insn = TRUE;
+                    // /* Make sure fetch stage is enabled to start fetching from new PC */
+                    // cpu->fetch.has_insn = TRUE;
+
+                }
+                
+                else if(cpu->BTB[btbIdx].resolved==1){
+                    flushAndFetchNext(cpu);
                 }
                 break;
             }
@@ -486,49 +500,20 @@ APEX_execute(APEX_CPU *cpu)
             {
                 if (cpu->zero_flag == FALSE)
                 {
-                    /* Calculate new PC, and send it to fetch unit */\
-                    int calculated_address=cpu->execute.pc + cpu->execute.imm;
-                    int btbIdx=searchBTB(cpu, cpu->execute.pc);
-                    // if(btbIdx==-1){
-                    //     addToBTB(cpu, cpu->execute.pc, -1);
-                    // }
-
-                    if(cpu->BTB[btbIdx].resolved==0){
-                        cpu->BTB[btbIdx].resolved=1;
-                        cpu->BTB[btbIdx].calculated_address=calculated_address;
-                        // cpu->pc = cpu->execute.pc + cpu->execute.imm;
-                        cpu->pc=calculated_address;
-                        
-                        /* Since we are using reverse callbacks for pipeline stages, 
-                        * this will prevent the new instruction from being fetched in the current cycle*/
-                        cpu->fetch_from_next_cycle = TRUE;
-
-                        /* Flush previous stages */
-                        cpu->decode.has_insn = FALSE;
-
-                        /* Make sure fetch stage is enabled to start fetching from new PC */
-                        cpu->fetch.has_insn = TRUE;
-                    }
-                    else if(cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].calculated_address!=calculated_address){
-                        cpu->BTB[btbIdx].calculated_address=calculated_address;
-                        // cpu->pc = cpu->execute.pc + cpu->execute.imm;
-                        cpu->pc=calculated_address;
-                        
-                        /* Since we are using reverse callbacks for pipeline stages, 
-                        * this will prevent the new instruction from being fetched in the current cycle*/
-                        cpu->fetch_from_next_cycle = TRUE;
-
-                        /* Flush previous stages */
-                        cpu->decode.has_insn = FALSE;
-
-                        /* Make sure fetch stage is enabled to start fetching from new PC */
-                        cpu->fetch.has_insn = TRUE;
-                    }
-
-
-
-                    // // cpu->pc = cpu->execute.pc + cpu->execute.imm;
-                    // cpu->pc=calculated_address;
+                    branch(cpu);
+                }
+                else{
+                    flushAndFetchNext(cpu);
+                }
+                break;
+            }
+            case OPCODE_BP:
+            {
+                if (cpu->p_flag == TRUE)
+                {
+                    branch(cpu);
+                    // /* Calculate new PC, and send it to fetch unit */
+                    // cpu->pc = cpu->execute.pc + cpu->execute.imm;
                     
                     // /* Since we are using reverse callbacks for pipeline stages, 
                     //  * this will prevent the new instruction from being fetched in the current cycle*/
@@ -540,56 +525,33 @@ APEX_execute(APEX_CPU *cpu)
                     // /* Make sure fetch stage is enabled to start fetching from new PC */
                     // cpu->fetch.has_insn = TRUE;
                 }
-                else{
-                    int btbIdx=searchBTB(cpu, cpu->execute.pc);
-                    cpu->BTB[btbIdx].taken=0;
-                    cpu->pc = cpu->execute.pc +4;
-                    cpu->fetch_from_next_cycle = TRUE;
-
-                    /* Flush previous stages */
-                    cpu->decode.has_insn = FALSE;
-
-                    /* Make sure fetch stage is enabled to start fetching from new PC */
-                    cpu->fetch.has_insn = TRUE;
-                }
-                break;
-            }
-            case OPCODE_BP:
-            {
-                if (cpu->p_flag == TRUE)
-                {
-                    /* Calculate new PC, and send it to fetch unit */
-                    cpu->pc = cpu->execute.pc + cpu->execute.imm;
-                    
-                    /* Since we are using reverse callbacks for pipeline stages, 
-                     * this will prevent the new instruction from being fetched in the current cycle*/
-                    cpu->fetch_from_next_cycle = TRUE;
-
-                    /* Flush previous stages */
-                    cpu->decode.has_insn = FALSE;
-
-                    /* Make sure fetch stage is enabled to start fetching from new PC */
-                    cpu->fetch.has_insn = TRUE;
+                else {
+                    flushAndFetchNext(cpu);
                 }
                 break;
             }
 
             case OPCODE_BNP:
             {
+                int btbIdx=searchBTB(cpu, cpu->execute.pc);
                 if (cpu->p_flag == FALSE)
                 {
-                    /* Calculate new PC, and send it to fetch unit */
-                    cpu->pc = cpu->execute.pc + cpu->execute.imm;
+                    branch(cpu);
+                    // /* Calculate new PC, and send it to fetch unit */
+                    // cpu->pc = cpu->execute.pc + cpu->execute.imm;
                     
-                    /* Since we are using reverse callbacks for pipeline stages, 
-                     * this will prevent the new instruction from being fetched in the current cycle*/
-                    cpu->fetch_from_next_cycle = TRUE;
+                    // /* Since we are using reverse callbacks for pipeline stages, 
+                    //  * this will prevent the new instruction from being fetched in the current cycle*/
+                    // cpu->fetch_from_next_cycle = TRUE;
 
-                    /* Flush previous stages */
-                    cpu->decode.has_insn = FALSE;
+                    // /* Flush previous stages */
+                    // cpu->decode.has_insn = FALSE;
 
-                    /* Make sure fetch stage is enabled to start fetching from new PC */
-                    cpu->fetch.has_insn = TRUE;
+                    // /* Make sure fetch stage is enabled to start fetching from new PC */
+                    // cpu->fetch.has_insn = TRUE;
+                }
+                else if (cpu->BTB[btbIdx].resolved==1){
+                    flushAndFetchNext(cpu);
                 }
                 break;
             }
@@ -953,11 +915,9 @@ void initBTB(APEX_CPU * cpu){
 
 void addToBTB(APEX_CPU * cpu, int instruction_address, int calculated_address){
     cpu->BTB[cpu->BTB_head].address = instruction_address;
-    // cpu->BTB[cpu->BTB_head].outcome_bits[0] = outcome_bits[0];
-    // cpu->BTB[cpu->BTB_head].outcome_bits[1] = outcome_bits[1];
     cpu->BTB[cpu->BTB_head].calculated_address = calculated_address;
     cpu->BTB[cpu->BTB_head].valid = 1; // Mark the entry as valid
-    cpu->BTB[cpu->BTB_head].resolved = 1;
+    cpu->BTB[cpu->BTB_head].resolved = 0;
     cpu->BTB[cpu->BTB_head].taken = 1;
     cpu->BTB_head = (cpu->BTB_head + 1) % BTB_SIZE; // Move to the next entry using round-robin
 }
@@ -971,6 +931,62 @@ int searchBTB(APEX_CPU* cpu, int instruction_address) {
         }
     }
     return -1; // Entry not found in BTB
+}
+
+void branch(APEX_CPU* cpu){
+    /* Calculate new PC, and send it to fetch unit */\
+    int calculated_address=cpu->execute.pc + cpu->execute.imm;
+    int btbIdx=searchBTB(cpu, cpu->execute.pc);
+    // if(btbIdx==-1){
+    //     addToBTB(cpu, cpu->execute.pc, -1);
+    // }
+
+    if(cpu->BTB[btbIdx].resolved==0){
+        cpu->BTB[btbIdx].resolved=1;
+        cpu->BTB[btbIdx].calculated_address=calculated_address;
+        // cpu->pc = cpu->execute.pc + cpu->execute.imm;
+        cpu->pc=calculated_address;
+        
+        /* Since we are using reverse callbacks for pipeline stages, 
+        * this will prevent the new instruction from being fetched in the current cycle*/
+        cpu->fetch_from_next_cycle = TRUE;
+
+        /* Flush previous stages */
+        cpu->decode.has_insn = FALSE;
+
+        /* Make sure fetch stage is enabled to start fetching from new PC */
+        cpu->fetch.has_insn = TRUE;
+    }
+    else if(cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].calculated_address!=calculated_address){
+        cpu->BTB[btbIdx].calculated_address=calculated_address;
+        // cpu->pc = cpu->execute.pc + cpu->execute.imm;
+        cpu->pc=calculated_address;
+        
+        /* Since we are using reverse callbacks for pipeline stages, 
+        * this will prevent the new instruction from being fetched in the current cycle*/
+        cpu->fetch_from_next_cycle = TRUE;
+
+        /* Flush previous stages */
+        cpu->decode.has_insn = FALSE;
+
+        /* Make sure fetch stage is enabled to start fetching from new PC */
+        cpu->fetch.has_insn = TRUE;
+    }else{
+        
+    }
+}
+
+void flushAndFetchNext(APEX_CPU* cpu){
+    int btbIdx=searchBTB(cpu, cpu->execute.pc);
+    // cpu->BTB[btbIdx].taken=0;
+    cpu->pc = cpu->execute.pc +4;
+    cpu->fetch_from_next_cycle = TRUE;
+
+    /* Flush previous stages */
+    cpu->decode.has_insn = FALSE;
+
+    /* Make sure fetch stage is enabled to start fetching from new PC */
+    cpu->fetch.has_insn = TRUE;
 }
 /*
  * APEX CPU simulation loop

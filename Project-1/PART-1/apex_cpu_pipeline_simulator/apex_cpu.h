@@ -85,4 +85,6 @@ void APEX_cpu_stop(APEX_CPU *cpu);
 void addToBTB(APEX_CPU * cpu, int instruction_address, int calculated_address);
 int searchBTB(APEX_CPU* cpu, int instruction_address);
 void initBTB(APEX_CPU * cpu);
+void branch(APEX_CPU* cpu);
+void flushAndFetchNext(APEX_CPU *cpu);
 #endif
