@@ -8,7 +8,7 @@
  */
 #ifndef _APEX_CPU_H_
 #define _APEX_CPU_H_
-
+#define BTB_SIZE 4
 #include "apex_macros.h"
 
 /* Format of an APEX instruction  */
@@ -39,7 +39,17 @@ typedef struct CPU_Stage
     int has_insn;
     int aux_buffer;
     int jump_buffer;
+
 } CPU_Stage;
+
+typedef struct BTB_Entry{
+    int address;
+    int calculated_address;
+    int taken;
+    int valid;
+    int counter;
+    int resolved;
+} BTB_Entry;
 
 /* Model of APEX CPU */
 typedef struct APEX_CPU
@@ -64,10 +74,15 @@ typedef struct APEX_CPU
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
+    int BTB_head;
+    BTB_Entry BTB[BTB_SIZE];
 } APEX_CPU;
 
 APEX_Instruction *create_code_memory(const char *filename, int *size);
 APEX_CPU *APEX_cpu_init(const char *filename);
 void APEX_cpu_run(APEX_CPU *cpu);
 void APEX_cpu_stop(APEX_CPU *cpu);
+void addToBTB(APEX_CPU * cpu, int instruction_address, int calculated_address);
+int searchBTB(APEX_CPU* cpu, int instruction_address);
+void initBTB(APEX_CPU * cpu);
 #endif
