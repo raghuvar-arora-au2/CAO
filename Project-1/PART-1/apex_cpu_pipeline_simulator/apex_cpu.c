@@ -180,6 +180,7 @@ APEX_fetch(APEX_CPU *cpu)
         
 
         if(cpu->fetch.opcode==OPCODE_BNZ || cpu->fetch.opcode==OPCODE_BZ || cpu->fetch.opcode==OPCODE_BNP|| cpu->fetch.opcode==OPCODE_BP){
+
             int btbIdx=searchBTB(cpu, cpu->pc);
             if(btbIdx>=0){
                 if( (cpu->fetch.opcode==OPCODE_BNZ|| cpu->fetch.opcode==OPCODE_BP) && cpu->BTB[btbIdx].outcome_bits!=0 ){
@@ -370,6 +371,7 @@ APEX_decode(APEX_CPU *cpu)
                 int btbIdx=searchBTB(cpu, cpu->decode.pc);
                 if(btbIdx==-1){
                     addToBTB(cpu, cpu->decode.pc, -1);
+                    btbIdx=searchBTB(cpu, cpu->decode.pc);
                     cpu->BTB[btbIdx].outcome_bits=11;
                     cpu->BTB[btbIdx].resolved=0;
                 }
@@ -384,6 +386,7 @@ APEX_decode(APEX_CPU *cpu)
                 int btbIdx=searchBTB(cpu, cpu->decode.pc);
                 if(btbIdx==-1){
                     addToBTB(cpu, cpu->decode.pc, -1);
+                    btbIdx=searchBTB(cpu, cpu->decode.pc);
                     cpu->BTB[btbIdx].outcome_bits=00;
                     cpu->BTB[btbIdx].resolved=0;
                 }
@@ -488,21 +491,15 @@ APEX_execute(APEX_CPU *cpu)
 
             case OPCODE_BZ:
             {
+                int btbIdx=searchBTB(cpu, cpu->execute.pc);
                 if (cpu->zero_flag == TRUE)
                 {
-                    /* Calculate new PC, and send it to fetch unit */
-                    cpu->pc = cpu->execute.pc + cpu->execute.imm;
-                    
-                    /* Since we are using reverse callbacks for pipeline stages, 
-                     * this will prevent the new instruction from being fetched in the current cycle*/
-                    cpu->fetch_from_next_cycle = TRUE;
-
-                    /* Flush previous stages */
-                    cpu->decode.has_insn = FALSE;
-
-                    /* Make sure fetch stage is enabled to start fetching from new PC */
-                    cpu->fetch.has_insn = TRUE;
+                    branch_BZ_BNP(cpu);
                 }
+                else if(cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].outcome_bits==11){
+                    flushAndFetchNext(cpu);
+                }
+                
                 break;
             }
             
@@ -523,44 +520,7 @@ APEX_execute(APEX_CPU *cpu)
                 int btbIdx=searchBTB(cpu, cpu->execute.pc);
                 if (cpu->zero_flag == FALSE)
                 {
-
-                    int calculated_address=cpu->execute.pc + cpu->execute.imm;
-                    int btbIdx=searchBTB(cpu, cpu->execute.pc);
-
-                    if (cpu->BTB[btbIdx].resolved==0 || (cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address!=calculated_address && cpu->BTB[btbIdx].outcome_bits==00)){
-                        cpu->BTB[btbIdx].resolved=1;
-                        cpu->BTB[btbIdx].calculated_address=calculated_address;
-                        cpu->BTB[btbIdx].outcome_bits=11;
-                        cpu->pc=calculated_address;
-                        
-        
-                        cpu->fetch_from_next_cycle = TRUE;
-
-                        cpu->decode.has_insn = FALSE;
-
-                        cpu->fetch.has_insn = TRUE;
-                    }
-                    else if (cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address==calculated_address && cpu->BTB[btbIdx].outcome_bits==00  ){
-                        cpu->BTB[btbIdx].outcome_bits=increment(cpu->BTB[btbIdx].outcome_bits);
-                        cpu->pc=calculated_address;
-                        cpu->fetch_from_next_cycle = TRUE;
-
-                        cpu->decode.has_insn = FALSE;
-
-                        cpu->fetch.has_insn = TRUE;
-                    }
-                    else if( cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address!=calculated_address && cpu->BTB[btbIdx].outcome_bits!=00 ){
-                        cpu->BTB[btbIdx].outcome_bits=decrement(cpu->BTB[btbIdx].outcome_bits);
-                        cpu->pc=calculated_address;
-                        cpu->fetch_from_next_cycle = TRUE;
-
-                        cpu->decode.has_insn = FALSE;
-
-                        cpu->fetch.has_insn = TRUE;
-                    }
-                    else if(cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address==calculated_address && cpu->BTB[btbIdx].outcome_bits!=00) {
-                        cpu->BTB[btbIdx].outcome_bits=increment(cpu->BTB[btbIdx].outcome_bits);
-                    }
+                    branch_BNZ_BP(cpu);
 
                 }
 
@@ -572,40 +532,26 @@ APEX_execute(APEX_CPU *cpu)
             }
             case OPCODE_BP:
             {
+                 int btbIdx=searchBTB(cpu, cpu->execute.pc);
                 if (cpu->p_flag == TRUE)
                 {
-                    /* Calculate new PC, and send it to fetch unit */
-                    cpu->pc = cpu->execute.pc + cpu->execute.imm;
-                    
-                    /* Since we are using reverse callbacks for pipeline stages, 
-                     * this will prevent the new instruction from being fetched in the current cycle*/
-                    cpu->fetch_from_next_cycle = TRUE;
-
-                    /* Flush previous stages */
-                    cpu->decode.has_insn = FALSE;
-
-                    /* Make sure fetch stage is enabled to start fetching from new PC */
-                    cpu->fetch.has_insn = TRUE;
+                    branch_BNZ_BP(cpu);
+                }
+                else if(cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].outcome_bits!=00){
+                    flushAndFetchNext(cpu);
                 }
                 break;
             }
 
             case OPCODE_BNP:
             {
+                int btbIdx=searchBTB(cpu, cpu->execute.pc);
                 if (cpu->p_flag == FALSE)
                 {
-                    /* Calculate new PC, and send it to fetch unit */
-                    cpu->pc = cpu->execute.pc + cpu->execute.imm;
-                    
-                    /* Since we are using reverse callbacks for pipeline stages, 
-                     * this will prevent the new instruction from being fetched in the current cycle*/
-                    cpu->fetch_from_next_cycle = TRUE;
-
-                    /* Flush previous stages */
-                    cpu->decode.has_insn = FALSE;
-
-                    /* Make sure fetch stage is enabled to start fetching from new PC */
-                    cpu->fetch.has_insn = TRUE;
+                    branch_BZ_BNP(cpu);
+                }
+                else if(cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].outcome_bits==11){
+                    flushAndFetchNext(cpu);
                 }
                 break;
             }
@@ -912,6 +858,7 @@ APEX_cpu_init(const char *filename)
 
     /* Initialize PC, Registers and all pipeline stages */
     cpu->pc = 4000;
+    initBTB(cpu);
     memset(cpu->regs, 0, sizeof(int) * REG_FILE_SIZE);
     memset(cpu->data_memory, 0, sizeof(int) * DATA_MEMORY_SIZE);
     cpu->single_step = ENABLE_SINGLE_STEP;
@@ -1067,8 +1014,137 @@ int decrement(int bits){
     }
     return 0;
 }
-void branch(APEX_CPU* cpu){
-    
+
+//  //possinble cases:
+//     // if to branch`
+//         // 1) entry not resolved -> flush and resolve
+//         // 2) bits =00 && wrong entry -> reintialize entry
+//         //                    && correct entry-> incremebnt bits and flush
+//         // 3) bits=01, 11 && wrong entry ->decrement, flush 
+//         //                        && correct Entry-> increment
+//     // if not to branch:
+//         // bits=11, 01 && and entry resolved -> flush, and fix counter
+//     // else 
+//         // do nothing
+void branch_BNZ_BP(APEX_CPU* cpu){
+    int calculated_address=cpu->execute.pc + cpu->execute.imm;
+    int btbIdx=searchBTB(cpu, cpu->execute.pc);
+
+    if (cpu->BTB[btbIdx].resolved==0 || (cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address!=calculated_address && cpu->BTB[btbIdx].outcome_bits==00)){
+        cpu->BTB[btbIdx].resolved=1;
+        cpu->BTB[btbIdx].calculated_address=calculated_address;
+        cpu->BTB[btbIdx].outcome_bits=11;
+        cpu->pc=calculated_address;
+        
+
+        cpu->fetch_from_next_cycle = TRUE;
+
+        cpu->decode.has_insn = FALSE;
+
+        cpu->fetch.has_insn = TRUE;
+    }
+    else if (cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address==calculated_address && cpu->BTB[btbIdx].outcome_bits==00  ){
+        cpu->BTB[btbIdx].outcome_bits=increment(cpu->BTB[btbIdx].outcome_bits);
+        cpu->pc=calculated_address;
+        cpu->fetch_from_next_cycle = TRUE;
+
+        cpu->decode.has_insn = FALSE;
+
+        cpu->fetch.has_insn = TRUE;
+    }
+    else if( cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address!=calculated_address && cpu->BTB[btbIdx].outcome_bits!=00 ){
+        cpu->BTB[btbIdx].outcome_bits=decrement(cpu->BTB[btbIdx].outcome_bits);
+        cpu->pc=calculated_address;
+        cpu->fetch_from_next_cycle = TRUE;
+
+        cpu->decode.has_insn = FALSE;
+
+        cpu->fetch.has_insn = TRUE;
+    }
+    else if(cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address==calculated_address && cpu->BTB[btbIdx].outcome_bits!=00) {
+        cpu->BTB[btbIdx].outcome_bits=increment(cpu->BTB[btbIdx].outcome_bits);
+    }
+}
+
+//  //possinble cases:
+//     // if to branch`
+//         // 1) entry not resolved -> flush and resolve
+//         // 2) bits =11 && wrong entry -> decrement, and flush
+//         //             && correct entry-> do nothing
+//         // 3) bits=01, 00 && wrong entry ->decrement, flush 
+//         //                && correct Entry-> flush and incrment
+//     // if not to branch:
+//         // bits=11 && and entry resolved -> flush, and fix counter
+//     // else 
+//         // do nothing
+void branch_BZ_BNP(APEX_CPU* cpu){
+    int calculated_address=cpu->execute.pc + cpu->execute.imm;
+    int btbIdx=searchBTB(cpu, cpu->execute.pc);
+
+    if (cpu->BTB[btbIdx].resolved==0 ){
+        cpu->BTB[btbIdx].resolved=1;
+        cpu->BTB[btbIdx].calculated_address=calculated_address;
+        cpu->BTB[btbIdx].outcome_bits=01;
+        cpu->pc=calculated_address;
+        cpu->fetch_from_next_cycle = TRUE;
+
+        cpu->decode.has_insn = FALSE;
+
+        cpu->fetch.has_insn = TRUE;
+    }
+    else if(cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].calculated_address!=calculated_address && cpu->BTB[btbIdx].outcome_bits==11  ){
+        cpu->BTB[btbIdx].outcome_bits=decrement(cpu->BTB[btbIdx].outcome_bits);
+        cpu->pc=calculated_address;
+        cpu->fetch_from_next_cycle = TRUE;
+
+        cpu->decode.has_insn = FALSE;
+
+        cpu->fetch.has_insn = TRUE; 
+    }
+    // else if(cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].calculated_address==calculated_address && cpu->BTB[btbIdx].outcome_bits==11  ){
+    //     // Do nothing
+    // }
+    else if (cpu->BTB[btbIdx].outcome_bits!=11 && cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].calculated_address!=calculated_address ){
+        cpu->BTB[btbIdx].outcome_bits=decrement(cpu->BTB[btbIdx].outcome_bits);
+        cpu->pc=calculated_address;
+        cpu->fetch_from_next_cycle = TRUE;
+
+        cpu->decode.has_insn = FALSE;
+
+        cpu->fetch.has_insn = TRUE; 
+    }
+    else if(cpu->BTB[btbIdx].outcome_bits!=11 && cpu->BTB[btbIdx].resolved==1 && cpu->BTB[btbIdx].calculated_address==calculated_address){
+        cpu->BTB[btbIdx].outcome_bits=increment(cpu->BTB[btbIdx].outcome_bits);
+        cpu->pc=calculated_address;
+        cpu->fetch_from_next_cycle = TRUE;
+
+        cpu->decode.has_insn = FALSE;
+
+        cpu->fetch.has_insn = TRUE; 
+    }
+    // if (cpu->BTB[btbIdx].resolved==0 ){
+    //     cpu->BTB[btbIdx].resolved=1;
+    //     cpu->BTB[btbIdx].calculated_address=calculated_address;
+    //     cpu->BTB[btbIdx].outcome_bits=00;
+    //     cpu->pc=calculated_address;
+        
+
+    //     cpu->fetch_from_next_cycle = TRUE;
+
+    //     cpu->decode.has_insn = FALSE;
+
+    //     cpu->fetch.has_insn = TRUE;
+    // }
+    // else if(cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address==calculated_address && cpu->BTB[btbIdx].outcome_bits==00 ){
+    //     cpu->BTB[btbIdx].outcome_bits=increment(cpu->BTB[btbIdx].outcome_bits);
+    //     cpu->pc=calculated_address;
+    //     cpu->fetch_from_next_cycle = TRUE;
+
+    //     cpu->decode.has_insn = FALSE;
+
+    //     cpu->fetch.has_insn = TRUE;
+    // }
+
 }
 
             //  //possinble cases:
