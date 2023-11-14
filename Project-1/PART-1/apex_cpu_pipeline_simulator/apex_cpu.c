@@ -1081,7 +1081,7 @@ void branch_BZ_BNP(APEX_CPU* cpu){
     int calculated_address=cpu->execute.pc + cpu->execute.imm;
     int btbIdx=searchBTB(cpu, cpu->execute.pc);
 
-    if (cpu->BTB[btbIdx].resolved==0 ){
+    if (cpu->BTB[btbIdx].resolved==0 || (cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address!=calculated_address && cpu->BTB[btbIdx].outcome_bits==00)){
         cpu->BTB[btbIdx].resolved=1;
         cpu->BTB[btbIdx].calculated_address=calculated_address;
         cpu->BTB[btbIdx].outcome_bits=01;
@@ -1122,28 +1122,7 @@ void branch_BZ_BNP(APEX_CPU* cpu){
 
         cpu->fetch.has_insn = TRUE; 
     }
-    // if (cpu->BTB[btbIdx].resolved==0 ){
-    //     cpu->BTB[btbIdx].resolved=1;
-    //     cpu->BTB[btbIdx].calculated_address=calculated_address;
-    //     cpu->BTB[btbIdx].outcome_bits=00;
-    //     cpu->pc=calculated_address;
-        
 
-    //     cpu->fetch_from_next_cycle = TRUE;
-
-    //     cpu->decode.has_insn = FALSE;
-
-    //     cpu->fetch.has_insn = TRUE;
-    // }
-    // else if(cpu->BTB[btbIdx].resolved==1  && cpu->BTB[btbIdx].calculated_address==calculated_address && cpu->BTB[btbIdx].outcome_bits==00 ){
-    //     cpu->BTB[btbIdx].outcome_bits=increment(cpu->BTB[btbIdx].outcome_bits);
-    //     cpu->pc=calculated_address;
-    //     cpu->fetch_from_next_cycle = TRUE;
-
-    //     cpu->decode.has_insn = FALSE;
-
-    //     cpu->fetch.has_insn = TRUE;
-    // }
 
 }
 
