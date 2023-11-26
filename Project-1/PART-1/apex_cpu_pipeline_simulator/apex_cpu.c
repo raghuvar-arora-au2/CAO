@@ -211,6 +211,18 @@ APEX_decode(APEX_CPU *cpu)
     }
 }
 
+static void int_fu(APEX_CPU *cpu, IQ *iq ){
+    if(cpu->execute_int_fu.has_insn){
+        switch (cpu->execute_int_fu.opcode)
+        {
+            case (OPCODE_ADD):{
+                int iqIdx=cpu->execute_int_fu.iq_idx;
+                cpu->execute_int_fu.result_buffer=iq->iq[iqIdx].src1_value+iq->iq[iqIdx].src2_value;
+            }
+        }
+    }
+}
+
 /*
  * Execute Stage of APEX Pipeline
  *
